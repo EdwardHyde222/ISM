@@ -1,36 +1,9 @@
-import os
 import uuid
 import random
 from random import randrange
 from textwrap import wrap
 
-import numpy as np
-
-
-class PacketExceptions:
-    def __init__(self):
-        self.__version = '27.04.2021 / P-Exceptions v.1'
-        self.__errors = {
-            'IndexError': 0,
-            'ValueError': 0,
-            'Exception': 0,
-            'BufferError': 0,
-        }
-
-    def analyze(self, error_type: str = None) -> None:
-        for types in self.__errors:
-            if error_type == types:
-                self.__errors[types] += 1
-
-    def print(self, error_type: str = None) -> None:
-        if error_type is not None:
-            for item in self.__errors:
-                if error_type == item:
-                    print("{} x{}".format(item, self.__errors[item]))
-                    break
-        else:
-            for item in self.__errors:
-                print("{} x{}".format(item, self.__errors[item]))
+from PacketExceptions import PacketExceptions
 
 
 def randomizer(string_length: int = 10) -> str:
@@ -39,10 +12,11 @@ def randomizer(string_length: int = 10) -> str:
     :param string_length: Amount of random symbols
     :return: Returns a random string of length string_length
     """
-    random = str(uuid.uuid4())  # Convert UUID format to a Python string.
-    random = random.upper()  # Make all characters uppercase.
-    random = random.replace("-", "")  # Remove the UUID '-'.
-    return random[0:string_length]  # Return the random string.
+    # random = str(uuid.uuid4())  # Convert UUID format to a Python string.
+    # random = random.upper()  # Make all characters uppercase.
+    # random = random.replace("-", "")  # Remove the UUID '-'.
+    # return random[0:string_length]  # Return the random string.
+    return str(uuid.uuid4()).upper().replace("-", "")[0:string_length]
 
 
 class Packet(PacketExceptions):
@@ -69,33 +43,40 @@ class Packet(PacketExceptions):
             'E': '5EU', 'L': 'DLU', 'S': 'KSU', 'Z': 'RZU',
             'F': '6FU', 'M': 'EMU', 'T': 'LTU',
             'G': '7GU', 'N': 'FNU', 'U': 'MUU',
+
+            ',': '1SA', '.': '2SB',
+            '/': '3SC', '\\': '4SD',
+            '<': '5SE', '>': '6SF',
+            '[': '7SG', ']': '8SH',
+            '!': '9SI', '?': 'ASJ',
+            '(': 'BSK', ')': 'CSL',
+            '$': 'DSM', '#': 'ESN',
+            '~': 'FSO', "'": 'GSP',
+            '`': 'HSQ', '|': 'ISR',
+            '^': 'JSS', '&': 'KST',
+            ';': 'LSU', ':': 'MSV',
+            '+': 'NSW', '-': 'OSX',
+            '=': 'PSY', '_': 'QSZ',
+            ' ': 'RS1',
         }
-        self.__static_combs: list = [
-            ',', '.',
-            '/', '\\',
-            '<', '>',
-            '[', ']',
-            '!', '?',
-            '(', ')',
-            '$', '#',
-            '!', '~',
-            '`', '|',
-            '^', '&',
-            ';', ':',
-            '+', '-',
-            '=', '_',
-            "'",
-        ]
-        self.static_length: int = parsing_method
-        self.combo_length: int = 3
-        # Featured function
-        # if self.static_length / 2 < len(data):
-        #     raise ValueError('Value of encrypting method cannot be lower than string length!')
+
+        if parsing_method < 32:
+            self.analyze('ValueError')
+            parsing_method = 32
+
+        self.__static_length: int = parsing_method
+        self.__combo_length: int = 3
 
         if data is not None:
-            self.data = data
+            self.__data = data
             self.encrypted_data = ''
-            self.allocate()
+            self.__allocate()
+        else:
+            self.analyze('ValueError')
+            raise ValueError('Data value cannot be equal None!')
+
+    def __del__(self):
+        self.print()
 
     def __data_swapper(self, first_data: str, second_data: str) -> str:
         """
@@ -117,11 +98,12 @@ class Packet(PacketExceptions):
             return randomized
             # return np.random.randint(0, amount, size=amount)
 
-        stocked_msg = wrap(first_data, self.combo_length)
-        stocked_str = wrap(second_data, self.combo_length)
+        stocked_msg = wrap(first_data, self.__combo_length)
+        stocked_str = wrap(second_data, self.__combo_length)
         randomized_stock = randomize_data_stock(len(stocked_str))
+
         for item in stocked_str:
-            if len(item) != self.combo_length:
+            if len(item) != self.__combo_length:
                 stocked_str.remove(item)
         for i in range(len(stocked_str)):
             # stocked_msg.insert(randomized_stock[i], stocked_str[i])
@@ -134,130 +116,45 @@ class Packet(PacketExceptions):
             :param data: Mixed encrypted message
             :return: Checked mixed encrypted message
             """
-            while len(data) < self.static_length:
+            while len(data) < self.__static_length:
                 data += randomizer(1)
 
-            if abs(len(data) - self.static_length) > 5:
-                while len(data) % self.static_length != 0:
+            if abs(len(data) - self.__static_length) > 5:
+                while len(data) % self.__static_length != 0:
                     data += randomizer(1)
             return data
 
         return validate_data(' '.join(stocked_msg).replace(' ', ''))
 
-    def allocate(self):
+    def __allocate(self):
         packet_value = ''
 
         sliced_data = ''
-        if len(self.data) > int(self.static_length / 2):
+        if len(self.__data) > int(self.__static_length / 2):
             new_data = ''
-            for i in range(int(self.static_length / 2)):
-                new_data += self.data[i]
+            for i in range(int(self.__static_length / 2)):
+                new_data += self.__data[i]
 
-            for i in range(int(self.static_length / 2), len(self.data)):
-                sliced_data += self.data[i]
-            self.data = new_data
+            for i in range(int(self.__static_length / 2), len(self.__data)):
+                sliced_data += self.__data[i]
+            self.__data = new_data
 
-        for letter in self.data:
-            if letter in self.__static_combs or letter == ' ':
-                packet_value += letter
-            else:
-                for combo in self.__combinations:
-                    if letter == combo:
-                        packet_value += self.__combinations.get(letter)
-                        break
+        for letter in self.__data:
+            # if letter in self.__static_combs or letter == ' ':
+            #     packet_value += letter
+            # else:
+            for combo in self.__combinations:
+                if letter == combo:
+                    packet_value += self.__combinations.get(letter)
+                    break
 
-        allocated_mem: int = int(self.static_length) - len(packet_value)
+        allocated_mem: int = int(self.__static_length) - len(packet_value)
+        # print(packet_value)
         # self.encrypted_data += complited + self.randomizer(string_length=allocated_mem)
         # increased basic encrypt logic
         self.encrypted_data += self.__data_swapper(packet_value, randomizer(string_length=allocated_mem))
 
         if sliced_data != '':
             # self.encrypted_data += '%'
-            self.data = sliced_data
-            self.allocate()
-
-    # def deploy(self, data: str):
-    #     recomplited = ''
-    #
-    #     for index in range(len(data)):
-    #         if data[index] in self.__static_combs or data[index] == ' ':
-    #             recomplited += data[index]
-    #         else:
-    #             for combo in self.__combinations:
-    #                 try:
-    #                     complimented_letters = data[index] + data[index + 1] + data[index + 2]
-    #
-    #                     if complimented_letters == self.__combinations.get(combo, ''):
-    #                         res = dict((v, k) for k, v in self.__combinations.items())
-    #                         recomplited += str(res.get(complimented_letters))
-    #                         break
-    #                 except ValueError:
-    #                     self.analyze('ValueError')
-    #                 except IndexError:
-    #                     self.analyze('IndexError')
-    #     return recomplited
-
-
-class Decrypt(PacketExceptions):
-    def __init__(self):
-        super().__init__()
-        self.__combinations: dict = {
-            'a': '1AL', 'h': '9HL', 'o': 'GOL', 'v': 'NVL',
-            'b': '2BL', 'i': 'AIL', 'p': 'HPL', 'w': 'OWL',
-            'c': '3CL', 'j': 'BJL', 'q': 'IQL', 'x': 'PXL',
-            'd': '4DL', 'k': 'CKL', 'r': 'JRL', 'y': 'QYL',
-            'e': '5EL', 'l': 'DLL', 's': 'KSL', 'z': 'RZL',
-            'f': '6FL', 'm': 'EML', 't': 'LTL',
-            'g': '7GL', 'n': 'FNL', 'u': 'MUL',
-
-            'A': '1AU', 'H': '9HU', 'O': 'GOU', 'V': 'NVU',
-            'B': '2BU', 'I': 'AIU', 'P': 'HPU', 'W': 'OWU',
-            'C': '3CU', 'J': 'BJU', 'Q': 'IQU', 'X': 'PXU',
-            'D': '4DU', 'K': 'CKU', 'R': 'JRU', 'Y': 'QYU',
-            'E': '5EU', 'L': 'DLU', 'S': 'KSU', 'Z': 'RZU',
-            'F': '6FU', 'M': 'EMU', 'T': 'LTU',
-            'G': '7GU', 'N': 'FNU', 'U': 'MUU',
-        }
-        self.__static_combs: list = [
-            ',', '.',
-            '/', '\\',
-            '<', '>',
-            '[', ']',
-            '!', '?',
-            '(', ')',
-            '$', '#',
-            '!', '~',
-            '`', '|',
-            '^', '&',
-            ';', ':',
-            '+', '-',
-            '=', '_',
-            "'",
-        ]
-
-    def decrypt(self, packet: Packet) -> str:
-        """
-        Class of packet decrypter
-        :param packet: Packet that will be decrypted
-        :return: Value of the packet
-        """
-        packet_value = ''
-        data = packet.encrypted_data
-
-        for index in range(len(data)):
-            if data[index] in self.__static_combs or data[index] == ' ':
-                packet_value += data[index]
-            else:
-                for combo in self.__combinations:
-                    try:
-                        complimented_letters = data[index] + data[index + 1] + data[index + 2]
-
-                        if complimented_letters == self.__combinations.get(combo, ''):
-                            res = dict((v, k) for k, v in self.__combinations.items())
-                            packet_value += str(res.get(complimented_letters))
-                            break
-                    except ValueError:
-                        self.analyze('ValueError')
-                    except IndexError:
-                        self.analyze('IndexError')
-        return packet_value
+            self.__data = sliced_data
+            self.__allocate()

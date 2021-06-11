@@ -1,7 +1,14 @@
+import string
 import uuid
 import random
 from random import randrange
 from textwrap import wrap
+from Decrypt import Decrypt
+
+import sklearn
+# from pip._vendor.msgpack.fallback import xrange
+# from joblib.numpy_pickle_utils import xrange
+from pip._vendor.urllib3.connectionpool import xrange
 
 from PacketExceptions import PacketExceptions
 
@@ -16,15 +23,16 @@ def randomizer(string_length: int = 10) -> str:
     # random = random.upper()  # Make all characters uppercase.
     # random = random.replace("-", "")  # Remove the UUID '-'.
     # return random[0:string_length]  # Return the random string.
-    return str(uuid.uuid4()).upper().replace("-", "")[0:string_length]
 
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in xrange(string_length))
+    # return str(uuid.uuid4()).upper().replace("-", "")[0:string_length]
 
 class Packet(PacketExceptions):
-    def __init__(self, data: str = None, parsing_method: int = 32) -> str:
+    def __init__(self, data: str = None, parsing_counter: int = 32, parsing_method: str = 'default') -> str:
         """
         A class designed to encrypt information using specifically determined combinations and logic.
         :param data: Information that will be encrypted
-        :param parsing_method: How many symbols are minimized to use (minimum = 32)
+        :param parsing_counter: How many symbols are minimized to use (minimum = 32)
         """
         super(Packet, self).__init__()
         self.__combinations: dict = {
@@ -60,15 +68,17 @@ class Packet(PacketExceptions):
             ' ': 'RS1',
         }
 
-        if parsing_method < 32:
+        if int(parsing_counter) < 32:
             self.analyze('ValueError')
-            parsing_method = 32
+            self.__static_length: int = 32
 
-        self.__static_length: int = parsing_method
+        self.__static_length: int = parsing_counter
         self.__combo_length: int = 3
+        self.__parsing_method: str = parsing_method
 
         if data is not None:
             self.__data = data
+            self.__native_data = data
             self.encrypted_data = ''
             self.__allocate()
         else:
@@ -77,6 +87,24 @@ class Packet(PacketExceptions):
 
     def __del__(self):
         self.print()
+
+
+    def __shuffle_data(self, first_data: str, second_data: str, amount: int = 1):
+        stocked_data = wrap(first_data, self.__combo_length)
+        stocked_waste = wrap(second_data, self.__combo_length)
+
+        for item in stocked_waste:
+            if len(item) != 3:
+                stocked_waste.remove(item)
+
+        for i in range(amount):
+            stocked_waste = sklearn.utils.shuffle(stocked_waste, random_state=0)
+
+        digits = ''.join(random.choice(string.digits) for _ in xrange(len(stocked_waste)))
+        for i in range(len(digits)):
+            stocked_data.insert(int(digits[i]), stocked_waste[i])
+
+        return ''.join(stocked_data)
 
     def __data_swapper(self, first_data: str, second_data: str) -> str:
         """
@@ -152,9 +180,25 @@ class Packet(PacketExceptions):
         # print(packet_value)
         # self.encrypted_data += complited + self.randomizer(string_length=allocated_mem)
         # increased basic encrypt logic
-        self.encrypted_data += self.__data_swapper(packet_value, randomizer(string_length=allocated_mem))
+        if self.__parsing_method == 'default':
+            self.encrypted_data += self.__data_swapper(packet_value, randomizer(string_length=allocated_mem))
+        elif self.__parsing_method == 'shuffle':
+            self.encrypted_data += self.__shuffle_data(packet_value, randomizer(string_length=allocated_mem), 100)
 
         if sliced_data != '':
             # self.encrypted_data += '%'
             self.__data = sliced_data
             self.__allocate()
+
+    def encrypted(self):
+        while not self.__validate():
+            self.analyze('PacketEncryptionError')
+        return self.encrypted_data
+
+    def __validate(self) -> bool:
+        if self.__native_data != Decrypt().decrypt(self.encrypted_data):
+
+            self.__allocate()
+            return False
+        else:
+            return True
